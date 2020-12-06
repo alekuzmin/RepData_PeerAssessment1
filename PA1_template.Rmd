@@ -4,22 +4,71 @@ output:
   html_document:
     keep_md: true
 ---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 
 ## Loading and preprocessing the data
-
-
+```{r, results='asis', warning=FALSE, message=FALSE}
+if (!file.exists("./data/activity.csv")) { 
+    unzip("activity.zip", exdir = "./data") 
+}
+activityData <- read.csv("./data/activity.csv")
+```
 
 ## What is mean total number of steps taken per day?
-
-
+```{r, results='asis', warning=FALSE, message=FALSE}
+library(dplyr)
+g <- group_by(activityData, date)
+d <- summarise(g, steps_mean = mean(steps, na.rm = TRUE))
+head(d)
+```
 
 ## What is the average daily activity pattern?
-
-
+```{r, results='asis', warning=FALSE, message=FALSE}
+library(ggplot2)
+gl <- group_by(activityData, interval)
+s <- summarise(gl, steps_mean = mean(steps, na.rm = TRUE))
+ggplot(data = s) + geom_line(mapping = aes(x = interval, y = steps_mean))
+```
 
 ## Imputing missing values
-
-
+```{r, results='asis', warning=FALSE, message=FALSE}
+dim(activityData)[1] - dim(na.omit(activityData))[1]
+```
+```{r, results='asis', warning=FALSE, message=FALSE}
+ggplot(data = d, aes(x=steps_mean)) + geom_histogram(bins = 30)
+```
+```{r, results='asis', warning=FALSE, message=FALSE}
+ad <- activityData
+for (i in 1:dim(ad)[1]) {
+  if(is.na(ad$steps[i])){
+      ad$steps[i] <- s$steps_mean[s$interval[i] == ad$interval[i]][i]
+  }
+}
+ad_gl <- group_by(ad, interval)
+ad_s <- summarise(ad_gl, steps_mean = mean(steps, na.rm = TRUE))
+ggplot(data = ad_s, aes(x=steps_mean)) + geom_histogram(bins = 30)
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r, results='asis', warning=FALSE, message=FALSE}
+for (i in 1:dim(ad)[1]) {
+    if(weekdays(as.Date(activityData$date[i])) == "суббота" || 
+       weekdays(as.Date(activityData$date[i])) == "воскресенье"){
+        activityData$weekday[i] <- 1
+       } else {
+        activityData$weekday[i] <- 0
+       }
+}
+w <- group_by(activityData[activityData$weekday==1,], interval)
+w_s <- summarise(w, steps_mean = mean(steps, na.rm = TRUE))
+no_w <- group_by(activityData[activityData$weekday==0,], interval)
+no_w_s <- summarise(no_w, steps_mean = mean(steps, na.rm = TRUE))
+plot(x = w_s$interval, y = w_s$steps_mean, type = "l", ylim = c(0,250), main = "weekdays and weekends activity", xlab="interval", ylab = "steps(mean)", col = "blue")
+lines(x = no_w_s$interval, y = no_w_s$steps_mean, col="red")
+legend("topleft",
+       c("weekends","weekdays"),
+       fill=c("blue","red"))
+```
